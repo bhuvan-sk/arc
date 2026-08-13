@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Answer",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["claims", "node_refs", "connection_refs", "trace_path", "question_type"],
+  "properties": {
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "tradeoff", "fact_ids"],
+        "properties": {
+          "text": { "type": "string" },
+          "tradeoff": { "type": "string" },
+          "fact_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "node_refs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "connection_refs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "trace_path": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "question_type": {
+      "type": "string",
+      "enum": ["communication", "data_location", "user_action_flow", "overview", "other"]
+    }
+  }
+}

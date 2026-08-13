@@ -1,0 +1,472 @@
+{
+  "nodes": [
+    {
+      "id": "pg",
+      "label": "Postgres 16",
+      "subtitle": "primary order store",
+      "type": "db",
+      "icon_key": "db.relational",
+      "role": "persists",
+      "layer": "data",
+      "layer_index": 0,
+      "bucket_rule": "type_map.db->data",
+      "aliases": ["orders db", "postgres"],
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, box Postgres 16"},
+        "confidence": 0.95
+      }
+    },
+    {
+      "id": "cdc",
+      "label": "Change Stream",
+      "subtitle": "logical replication",
+      "type": "queue",
+      "icon_key": "q.stream",
+      "role": "persists",
+      "layer": "data",
+      "layer_index": 0,
+      "bucket_rule": "type_map.queue.role_persists->data",
+      "aliases": ["cdc", "change data capture"],
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, arrow from Postgres to Snowflake"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "wh",
+      "label": "Snowflake",
+      "subtitle": "analytics warehouse",
+      "type": "db",
+      "icon_key": "db.warehouse",
+      "role": "persists",
+      "layer": "data",
+      "layer_index": 0,
+      "bucket_rule": "type_map.db->data",
+      "aliases": ["snowflake", "warehouse", "analytics"],
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, box Snowflake"},
+        "confidence": 0.95
+      }
+    },
+    {
+      "id": "gw",
+      "label": "Edge Gateway",
+      "subtitle": "auth + rate limits",
+      "type": "svc",
+      "icon_key": "svc.gateway",
+      "role": "serves",
+      "layer": "api",
+      "layer_index": 1,
+      "bucket_rule": "keyword.gateway->api",
+      "aliases": ["gateway", "edge", "api gateway"],
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, box Edge Gateway"},
+        "confidence": 0.95
+      }
+    },
+    {
+      "id": "ledger",
+      "label": "Ledger API",
+      "subtitle": "double-entry writes",
+      "type": "svc",
+      "icon_key": "svc.generic",
+      "role": "serves",
+      "layer": "api",
+      "layer_index": 1,
+      "bucket_rule": "type_map.svc->api",
+      "aliases": ["ledger"],
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, box Ledger API"},
+        "confidence": 0.95
+      }
+    },
+    {
+      "id": "stripe",
+      "label": "Stripe",
+      "subtitle": "payments provider",
+      "type": "ext",
+      "icon_key": "ext.payment",
+      "role": "external",
+      "layer": "api",
+      "layer_index": 1,
+      "bucket_rule": "type_map.ext.role_external->api",
+      "aliases": ["stripe"],
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, box Stripe"},
+        "confidence": 0.95
+      }
+    },
+    {
+      "id": "fastly",
+      "label": "Fastly Edge",
+      "subtitle": "TLS, cache, WAF",
+      "type": "infra",
+      "icon_key": "infra.cloud",
+      "role": "runs",
+      "layer": "infra",
+      "layer_index": 2,
+      "bucket_rule": "type_map.infra->infra",
+      "aliases": ["fastly", "cdn"],
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, box Fastly Edge"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "eks",
+      "label": "EKS us-east-1",
+      "subtitle": "12 nodes, 3 AZs",
+      "type": "infra",
+      "icon_key": "infra.container",
+      "role": "runs",
+      "layer": "infra",
+      "layer_index": 2,
+      "bucket_rule": "keyword.eks->infra",
+      "aliases": ["eks", "kubernetes", "k8s cluster"],
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, box EKS us-east-1"},
+        "confidence": 0.95
+      }
+    },
+    {
+      "id": "obs",
+      "label": "Grafana Cloud",
+      "subtitle": "metrics, traces, logs",
+      "type": "infra",
+      "icon_key": "infra.observability",
+      "role": "runs",
+      "layer": "infra",
+      "layer_index": 2,
+      "bucket_rule": "keyword.grafana->infra",
+      "aliases": ["grafana", "observability", "monitoring"],
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, box Grafana Cloud"},
+        "confidence": 0.9
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "e_pg_cdc",
+      "source": "pg",
+      "target": "cdc",
+      "transport": "replication",
+      "label": "logical replication",
+      "protocol": "wal",
+      "sequence": 1,
+      "metric": null,
+      "layer": "data",
+      "layer_index": 0,
+      "cross_layer": false,
+      "max_layer_index": 0,
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, arrow Postgres -> Change Stream"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "e_cdc_wh",
+      "source": "cdc",
+      "target": "wh",
+      "transport": "async",
+      "label": "stream to warehouse",
+      "protocol": null,
+      "sequence": 2,
+      "metric": null,
+      "layer": "data",
+      "layer_index": 0,
+      "cross_layer": false,
+      "max_layer_index": 0,
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, arrow Change Stream -> Snowflake"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "e_gw_ledger",
+      "source": "gw",
+      "target": "ledger",
+      "transport": "sync",
+      "label": "payment request",
+      "protocol": "http",
+      "sequence": 1,
+      "metric": null,
+      "layer": "api",
+      "layer_index": 1,
+      "cross_layer": false,
+      "max_layer_index": 1,
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, arrow Gateway -> Ledger"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "e_ledger_stripe",
+      "source": "ledger",
+      "target": "stripe",
+      "transport": "sync",
+      "label": "settlement",
+      "protocol": "https",
+      "sequence": 2,
+      "metric": null,
+      "layer": "api",
+      "layer_index": 1,
+      "cross_layer": false,
+      "max_layer_index": 1,
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, arrow Ledger -> Stripe"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "e_ledger_pg",
+      "source": "ledger",
+      "target": "pg",
+      "transport": "sync",
+      "label": "write order",
+      "protocol": "sql",
+      "sequence": null,
+      "metric": null,
+      "layer": "api",
+      "layer_index": 1,
+      "cross_layer": true,
+      "max_layer_index": 1,
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, arrow Ledger -> Postgres"},
+        "confidence": 0.85
+      }
+    },
+    {
+      "id": "e_fastly_eks",
+      "source": "fastly",
+      "target": "eks",
+      "transport": "sync",
+      "label": "route traffic",
+      "protocol": "https",
+      "sequence": 1,
+      "metric": null,
+      "layer": "infra",
+      "layer_index": 2,
+      "cross_layer": false,
+      "max_layer_index": 2,
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, arrow Fastly -> EKS"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "e_eks_obs",
+      "source": "eks",
+      "target": "obs",
+      "transport": "async",
+      "label": "telemetry",
+      "protocol": "otlp",
+      "sequence": 2,
+      "metric": null,
+      "layer": "infra",
+      "layer_index": 2,
+      "cross_layer": false,
+      "max_layer_index": 2,
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, arrow EKS -> Grafana"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "e_eks_gw",
+      "source": "eks",
+      "target": "gw",
+      "transport": "sync",
+      "label": "runs gateway pod",
+      "protocol": null,
+      "sequence": null,
+      "metric": null,
+      "layer": "infra",
+      "layer_index": 2,
+      "cross_layer": true,
+      "max_layer_index": 2,
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, EKS hosts all workloads"},
+        "confidence": 0.8
+      }
+    }
+  ],
+  "facts": [
+    {
+      "id": "fact_001",
+      "subject_kind": "node",
+      "subject_id": "pg",
+      "layer": "data",
+      "layer_index": 0,
+      "category": "consistency",
+      "statement": "All order writes land on a single Postgres primary.",
+      "tradeoff": "One writer gives serialisable ordering free, but the primary is a single point of write availability.",
+      "ddia_axis": "reliability",
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, architecture notes"},
+        "confidence": 0.95
+      }
+    },
+    {
+      "id": "fact_002",
+      "subject_kind": "connection",
+      "subject_id": "e_pg_cdc",
+      "layer": "data",
+      "layer_index": 0,
+      "category": "availability",
+      "statement": "Logical replication publishes row-level changes to the change stream.",
+      "tradeoff": "Row-level CDC decouples analytics from the primary write path, but introduces replication lag that makes warehoused data eventually consistent.",
+      "ddia_axis": "scalability",
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, replication arrow"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "fact_003",
+      "subject_kind": "node",
+      "subject_id": "wh",
+      "layer": "data",
+      "layer_index": 0,
+      "category": "scale",
+      "statement": "Snowflake is a read-only consumer receiving streamed writes from the change stream.",
+      "tradeoff": "Separating analytical reads from transactional writes eliminates OLAP query contention on the primary, but the warehouse has no write-path consistency guarantee.",
+      "ddia_axis": "scalability",
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, Snowflake box"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "fact_004",
+      "subject_kind": "node",
+      "subject_id": "gw",
+      "layer": "api",
+      "layer_index": 1,
+      "category": "security",
+      "statement": "The Edge Gateway is the sole public surface, handling auth and rate limiting before any service sees a request.",
+      "tradeoff": "A single ingress surface is easier to audit and rate-limit, but it becomes a bottleneck and single point of failure if not horizontally scaled.",
+      "ddia_axis": "reliability",
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, Edge Gateway box"},
+        "confidence": 0.95
+      }
+    },
+    {
+      "id": "fact_005",
+      "subject_kind": "node",
+      "subject_id": "ledger",
+      "layer": "api",
+      "layer_index": 1,
+      "category": "consistency",
+      "statement": "Ledger API is the only service holding write credentials for Postgres.",
+      "tradeoff": "Centralised write ownership prevents split-brain and makes consistency easier to reason about, but Ledger becomes a chokepoint for all write throughput.",
+      "ddia_axis": "maintainability",
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, architecture notes Ledger owns DB creds"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "fact_006",
+      "subject_kind": "connection",
+      "subject_id": "e_ledger_stripe",
+      "layer": "api",
+      "layer_index": 1,
+      "category": "availability",
+      "statement": "Settlement calls to Stripe are idempotent and retried out-of-band.",
+      "tradeoff": "Idempotent retries prevent duplicate charges on provider timeout, but require reliable idempotency key storage and complicate failure recovery logic.",
+      "ddia_axis": "reliability",
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, architecture notes Stripe idempotency"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "fact_007",
+      "subject_kind": "node",
+      "subject_id": "eks",
+      "layer": "infra",
+      "layer_index": 2,
+      "category": "availability",
+      "statement": "Everything runs on one EKS cluster across three availability zones in us-east-1.",
+      "tradeoff": "Multi-AZ within a single region survives AZ failures but is vulnerable to a full regional outage; cross-region failover is absent.",
+      "ddia_axis": "reliability",
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, EKS box 12 nodes 3 AZs"},
+        "confidence": 0.95
+      }
+    },
+    {
+      "id": "fact_008",
+      "subject_kind": "node",
+      "subject_id": "fastly",
+      "layer": "infra",
+      "layer_index": 2,
+      "category": "latency",
+      "statement": "Fastly absorbs TLS termination and caching before traffic reaches the cluster.",
+      "tradeoff": "Edge caching reduces origin load and cuts latency for cacheable assets, but dynamic payment flows bypass cache and still hit the cluster.",
+      "ddia_axis": "scalability",
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, Fastly box TLS cache WAF"},
+        "confidence": 0.9
+      }
+    },
+    {
+      "id": "fact_009",
+      "subject_kind": "node",
+      "subject_id": "obs",
+      "layer": "infra",
+      "layer_index": 2,
+      "category": "deployment",
+      "statement": "Traces, metrics and logs ship to Grafana Cloud with thirty-day retention.",
+      "tradeoff": "Centralised observability enables fast incident diagnosis, but shipping all telemetry to an external SaaS adds egress cost and creates an outage risk if Grafana Cloud is unreachable.",
+      "ddia_axis": "maintainability",
+      "provenance": {
+        "origin": "stated",
+        "source": {"kind": "upload", "file_id": "f_01", "locator": "page 1, Grafana Cloud box"},
+        "confidence": 0.85
+      }
+    }
+  ],
+  "scale": {
+    "band": "medium",
+    "raw_mentions": ["10k daily users"],
+    "normalized": {
+      "dau": 10000,
+      "rps_peak": 2000,
+      "data_volume_gb": null,
+      "read_write_ratio": null
+    },
+    "provenance": {
+      "origin": "stated",
+      "source": {"kind": "upload", "file_id": "f_01", "locator": "architecture notes"},
+      "confidence": 0.8
+    }
+  }
+}

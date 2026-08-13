@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "architecture-explainer-backend"
+version = "0.1.0"
+description = "Backend for Architecture Explainer"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "motor>=3.3.2",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+    "openai>=1.14.0",
+    "google-genai>=2.11.0",
+    "pymupdf>=1.23.0",
+    "python-docx>=1.1.0",
+    "pillow>=10.2.0",
+    "weasyprint>=61.0",
+    "python-multipart>=0.0.9",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0"
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

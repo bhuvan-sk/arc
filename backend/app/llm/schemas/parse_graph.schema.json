@@ -1,0 +1,173 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ParseGraph",
+  "description": "Output schema for the parse step — no layer fields allowed",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["nodes", "connections", "facts", "scale"],
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "subtitle", "type", "icon_key", "role", "aliases", "provenance"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "subtitle": { "type": "string" },
+          "type": { "type": "string", "enum": ["db", "svc", "queue", "infra", "ext"] },
+          "icon_key": { "type": "string" },
+          "role": { "type": "string", "enum": ["persists", "serves", "runs", "external"] },
+          "aliases": { "type": "array", "items": { "type": "string" } },
+          "provenance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["origin", "source", "confidence"],
+            "properties": {
+              "origin": { "type": "string", "enum": ["stated", "inferred"] },
+              "source": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind", "file_id", "locator", "url", "title", "retrieved_at", "rule_id"],
+                "properties": {
+                  "kind": { "type": "string", "enum": ["upload", "web", "rules", "llm_inference"] },
+                  "file_id": { "type": ["string", "null"] },
+                  "locator": { "type": ["string", "null"] },
+                  "url": { "type": ["string", "null"] },
+                  "title": { "type": ["string", "null"] },
+                  "retrieved_at": { "type": ["string", "null"] },
+                  "rule_id": { "type": ["string", "null"] }
+                }
+              },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "source", "target", "transport", "label", "protocol", "sequence", "metric", "provenance"],
+        "properties": {
+          "id": { "type": "string" },
+          "source": { "type": "string" },
+          "target": { "type": "string" },
+          "transport": { "type": "string", "enum": ["sync", "async", "replication", "bidirectional"] },
+          "label": { "type": ["string", "null"] },
+          "protocol": { "type": ["string", "null"] },
+          "sequence": { "type": ["integer", "null"] },
+          "metric": { "type": ["string", "null"] },
+          "provenance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["origin", "source", "confidence"],
+            "properties": {
+              "origin": { "type": "string", "enum": ["stated", "inferred"] },
+              "source": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind", "file_id", "locator", "url", "title", "retrieved_at", "rule_id"],
+                "properties": {
+                  "kind": { "type": "string", "enum": ["upload", "web", "rules", "llm_inference"] },
+                  "file_id": { "type": ["string", "null"] },
+                  "locator": { "type": ["string", "null"] },
+                  "url": { "type": ["string", "null"] },
+                  "title": { "type": ["string", "null"] },
+                  "retrieved_at": { "type": ["string", "null"] },
+                  "rule_id": { "type": ["string", "null"] }
+                }
+              },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "subject_kind", "subject_id", "category", "statement", "tradeoff", "ddia_axis", "provenance"],
+        "properties": {
+          "id": { "type": "string" },
+          "subject_kind": { "type": "string", "enum": ["node", "connection"] },
+          "subject_id": { "type": "string" },
+          "category": { "type": "string", "enum": ["storage", "consistency", "availability", "scale", "latency", "deployment", "security", "cost"] },
+          "statement": { "type": "string" },
+          "tradeoff": { "type": "string" },
+          "ddia_axis": { "type": "string", "enum": ["reliability", "scalability", "maintainability"] },
+          "provenance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["origin", "source", "confidence"],
+            "properties": {
+              "origin": { "type": "string", "enum": ["stated", "inferred"] },
+              "source": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind", "file_id", "locator", "url", "title", "retrieved_at", "rule_id"],
+                "properties": {
+                  "kind": { "type": "string", "enum": ["upload", "web", "rules", "llm_inference"] },
+                  "file_id": { "type": ["string", "null"] },
+                  "locator": { "type": ["string", "null"] },
+                  "url": { "type": ["string", "null"] },
+                  "title": { "type": ["string", "null"] },
+                  "retrieved_at": { "type": ["string", "null"] },
+                  "rule_id": { "type": ["string", "null"] }
+                }
+              },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "scale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw_mentions", "normalized", "provenance"],
+      "properties": {
+        "raw_mentions": { "type": "array", "items": { "type": "string" } },
+        "normalized": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dau", "rps_peak", "data_volume_gb", "read_write_ratio"],
+          "properties": {
+            "dau": { "type": ["number", "null"] },
+            "rps_peak": { "type": ["number", "null"] },
+            "data_volume_gb": { "type": ["number", "null"] },
+            "read_write_ratio": { "type": ["number", "null"] }
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["origin", "source", "confidence"],
+          "properties": {
+            "origin": { "type": "string", "enum": ["stated", "inferred"] },
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "file_id", "locator", "url", "title", "retrieved_at", "rule_id"],
+              "properties": {
+                "kind": { "type": "string", "enum": ["upload", "web", "rules", "llm_inference"] },
+                "file_id": { "type": ["string", "null"] },
+                "locator": { "type": ["string", "null"] },
+                "url": { "type": ["string", "null"] },
+                "title": { "type": ["string", "null"] },
+                "retrieved_at": { "type": ["string", "null"] },
+                "rule_id": { "type": ["string", "null"] }
+              }
+            },
+            "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    }
+  }
+}
