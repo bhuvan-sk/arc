@@ -9,9 +9,10 @@ interface LayerBandProps {
   opacity: number;
   isActive: boolean;
   color: string;
+  width?: number;
 }
 
-export const LayerBand: React.FC<LayerBandProps> = ({ y, label, opacity, isActive, color }) => {
+export const LayerBand: React.FC<LayerBandProps> = ({ y, label, opacity, isActive, color, width = VIEW_W }) => {
   const textColor = isActive ? color : COLORS.textGhost;
   const zoneY = y - 78;
   const zoneHeight = 236;
@@ -21,7 +22,7 @@ export const LayerBand: React.FC<LayerBandProps> = ({ y, label, opacity, isActiv
       <rect
         x={12}
         y={zoneY}
-        width={VIEW_W - 24}
+        width={width - 24}
         height={zoneHeight}
         rx={20}
         fill={isActive ? `${color}09` : 'rgba(255,255,255,.022)'}

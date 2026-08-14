@@ -130,7 +130,7 @@ export const Canvas: React.FC<CanvasProps> = ({
     };
   }, []);
 
-  // ── Build source layers first so we can use them in viewBox calculation ──
+  // ── Build source layers ──
   const sourceLayers = (layers && layers.length > 0)
     ? layers.map(l => ({
         index: l.index,
@@ -149,52 +149,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   const totalEdgeCount = graph ? graph.connections.length : sourceLayers.reduce((n, l) => n + l.edgeList.length, 0);
   const totalLayerCount = sourceLayers.length || 3;
 
-  // ── Scrollable full-diagram viewBox ──
-  // Show every layer from top to bottom so the user can scroll through all layers at once.
-  const lastLayerY = sourceLayers.length > 0 ? sourceLayers[sourceLayers.length - 1].y : 690;
-  const DIAGRAM_TOP = 50;                        // breathing room above layer 01
-  const DIAGRAM_BOT = lastLayerY + NODE_H + 100; // generous padding below last layer
-  const DIAGRAM_H   = DIAGRAM_BOT - DIAGRAM_TOP;
-  const viewBox = `0 ${DIAGRAM_TOP} ${VIEW_W} ${DIAGRAM_H}`;
-
-  // Zoom + pan transform: scale around center, then shift by pan offset
-  const scale = zoom / 100;
-  const cx = VIEW_W / 2;
-  const cy = DIAGRAM_TOP + DIAGRAM_H / 2;
-  const zoomTransform = `translate(${cx},${cy}) scale(${scale}) translate(-${cx},-${cy}) translate(${-panX},${-panY})`;
-
-  // SVG aspect ratio for the padding-bottom intrinsic-size trick
-  const svgAspect = DIAGRAM_H / VIEW_W;
-
-  // ── PNG download: use html2canvas to capture the visible rendered DOM ──
-  // (SVG → Canvas fails for foreignObject content like NodeCard text,
-  // so we screenshot the outer wrapper div instead.)
-  const downloadPng = useCallback(async () => {
-    const el = outerRef.current;
-    if (!el) return;
-    try {
-      const canvas = await html2canvas(el, {
-        backgroundColor: '#080a14',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${(sessionId || 'diagram').slice(0, 16)}-layer-${activeLayerIndex + 1}.png`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }, 'image/png');
-    } catch (err) {
-      console.error('PNG export failed:', err);
-    }
-  }, [sessionId, activeLayerIndex]);
-
-
-  // ── Calculate node geometry ──
+  // ── Calculate node geometry first ──
   const geomMap: Record<string, { id: string; x: number; y: number; type: string; title: string; sub: string; iconKey: string; origin: string; li: number }> = {};
 
   if (graph && layers && layers.length > 0) {
@@ -236,6 +191,107 @@ export const Canvas: React.FC<CanvasProps> = ({
       });
     });
   }
+
+  // ── Calculate dynamic diagram width to prevent right-side clipping ──
+  let maxRight = 1030;
+  Object.values(geomMap).forEach(n => {
+    if (n.x + NODE_H + 280 > maxRight) {
+      maxRight = n.x + NODE_H + 280;
+    }
+  });
+  sourceLayers.forEach(l => {
+    l.edgeList.forEach(e => {
+      const A = geomMap[e.a];
+      const B = geomMap[e.b];
+      if (A && B) {
+        const maxX = Math.max(A.x, B.x) + 300;
+        if (maxX > maxRight) maxRight = maxX;
+      }
+    });
+  });
+  const DIAGRAM_W = Math.max(1030, maxRight);
+
+  // ── Mouse drag pan handler ──
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragging.current) return;
+      const el = containerRef.current;
+      if (!el) return;
+      const svgScale = DIAGRAM_W / el.clientWidth;
+      const dx = (e.clientX - dragStart.current.mx) * svgScale;
+      const dy = (e.clientY - dragStart.current.my) * svgScale;
+      setPanX(dragStart.current.px - dx);
+      setPanY(dragStart.current.py - dy);
+    };
+    const onUp = () => {
+      dragging.current = false;
+      setIsDragging(false);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [DIAGRAM_W]);
+
+  // ── Scrollable full-diagram viewBox ──
+  const lastLayerY = sourceLayers.length > 0 ? sourceLayers[sourceLayers.length - 1].y : 690;
+  const DIAGRAM_TOP = 50;                        // breathing room above layer 01
+  const DIAGRAM_BOT = lastLayerY + NODE_H + 100; // generous padding below last layer
+  const DIAGRAM_H   = DIAGRAM_BOT - DIAGRAM_TOP;
+  const viewBox = `0 ${DIAGRAM_TOP} ${DIAGRAM_W} ${DIAGRAM_H}`;
+
+  // Zoom + pan transform: scale around center, then shift by pan offset
+  const scale = zoom / 100;
+  const cx = DIAGRAM_W / 2;
+  const cy = DIAGRAM_TOP + DIAGRAM_H / 2;
+  const zoomTransform = `translate(${cx},${cy}) scale(${scale}) translate(-${cx},-${cy}) translate(${-panX},${-panY})`;
+
+  // SVG aspect ratio for the padding-bottom intrinsic-size trick
+  const svgAspect = DIAGRAM_H / DIAGRAM_W;
+
+  // ── PNG download: captures the full rendered diagram ──
+  const downloadPng = useCallback(async () => {
+    const scrollEl = containerRef.current;
+    if (!scrollEl) return;
+    const targetEl = (scrollEl.firstElementChild as HTMLElement) || scrollEl;
+
+    const prevScrollTop = scrollEl.scrollTop;
+    const prevScrollLeft = scrollEl.scrollLeft;
+    scrollEl.scrollTop = 0;
+    scrollEl.scrollLeft = 0;
+
+    try {
+      const canvas = await html2canvas(targetEl, {
+        backgroundColor: '#080a14',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        width: targetEl.offsetWidth,
+        height: targetEl.offsetHeight,
+      });
+
+      scrollEl.scrollTop = prevScrollTop;
+      scrollEl.scrollLeft = prevScrollLeft;
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${(sessionId || 'architecture').slice(0, 16)}-full-diagram.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    } catch (err) {
+      scrollEl.scrollTop = prevScrollTop;
+      scrollEl.scrollLeft = prevScrollLeft;
+      console.error('PNG export failed:', err);
+    }
+  }, [sessionId]);
 
   // ── Build render arrays ──
   const renderedLayers: React.ReactNode[] = [];
@@ -348,7 +404,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           transition: 'opacity .6s ease, transform .6s cubic-bezier(.2,.7,.2,1), filter .6s ease',
         } as React.CSSProperties}
       >
-        <LayerBand x={COLS[0]} y={layer.y} label={layer.label} opacity={1} isActive={isActive} color={color} />
+        <LayerBand x={COLS[0]} y={layer.y} label={layer.label} opacity={1} isActive={isActive} color={color} width={DIAGRAM_W} />
         {bandEdges}
         {bandSteps}
         {bandNodes}
