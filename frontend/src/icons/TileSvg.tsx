@@ -7,6 +7,12 @@ interface TileSvgProps {
   y?: number;
   size?: number; // default 36
   strokeWidth?: number; // default 2
+  /** Layer-driven recolor — overrides the icon family's own palette so the
+   * tile always reads as "this layer's color", not "this component type's
+   * color" (Strata keys the whole canvas off layer identity). */
+  tileGradientId?: string;
+  glyphColor?: string;
+  tileBorderColor?: string;
 }
 
 export const TileSvg: React.FC<TileSvgProps> = ({
@@ -15,11 +21,16 @@ export const TileSvg: React.FC<TileSvgProps> = ({
   y = 13,
   size = 36,
   strokeWidth = 2,
+  tileGradientId,
+  glyphColor = '#f2f4ff',
+  tileBorderColor,
 }) => {
   const { icon, family } = getIconByKey(iconKey);
   const rx = Math.round(size * 0.26);
   const glyphSize = Math.round(size * (20 / 36));
   const glyphOffset = (size - glyphSize) / 2;
+  const gradId = tileGradientId || `grad-${family.id}`;
+  const borderColor = tileBorderColor || 'rgba(255,255,255,.14)';
 
   return (
     <g transform={`translate(${x}, ${y})`}>
@@ -30,8 +41,8 @@ export const TileSvg: React.FC<TileSvgProps> = ({
         width={size}
         height={size}
         rx={rx}
-        fill={`url(#grad-${family.id})`}
-        stroke={family.dark}
+        fill={`url(#${gradId})`}
+        stroke={borderColor}
         strokeWidth={1}
       />
       {/* Top inner highlight line */}
@@ -40,16 +51,7 @@ export const TileSvg: React.FC<TileSvgProps> = ({
         y1={1}
         x2={size - rx}
         y2={1}
-        stroke="rgba(255, 255, 255, 0.34)"
-        strokeWidth={1}
-      />
-      {/* Bottom inner shadow line */}
-      <line
-        x1={rx}
-        y1={size - 1}
-        x2={size - rx}
-        y2={size - 1}
-        stroke="rgba(0, 0, 0, 0.34)"
+        stroke="rgba(255, 255, 255, 0.2)"
         strokeWidth={1}
       />
       {/* Icon glyph */}
@@ -59,11 +61,10 @@ export const TileSvg: React.FC<TileSvgProps> = ({
           height={glyphSize}
           viewBox="0 0 24 24"
           fill="none"
-          stroke="#ffffff"
+          stroke={glyphColor}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.4))' }}
         >
           <path d={icon.d} />
         </svg>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { FONT_MONO } from '../theme/tokens';
 
 interface MetricPillProps {
   x: number;
@@ -19,12 +20,11 @@ export const MetricPill: React.FC<MetricPillProps> = ({ x, y, text, color, opaci
           width: '100%',
           height: '100%',
           padding: '2px 8px',
-          borderRadius: 7,
-          background: '#141417',
-          border: `1px solid ${color}59`,
-          color: '#c8c8d1',
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 11,
+          borderRadius: 8,
+          background: `${color}1f`,
+          color,
+          fontFamily: FONT_MONO,
+          fontSize: 9.5,
           whiteSpace: 'nowrap',
         }}
       >

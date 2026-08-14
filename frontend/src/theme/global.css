@@ -1,18 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Martian+Mono:wght@400;500&display=swap');
 @import './keyframes.css';
 
 html, body {
   margin: 0;
   padding: 0;
-  background: #0f0f11;
-  color: #e1e1e6;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #05060d;
+  color: #eceffc;
+  font-family: 'Sora', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   height: 100%;
   width: 100%;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+a { color: #92a6ff; text-decoration: none; }
+a:hover { color: #f2f4ff; }
 
 * {
   box-sizing: border-box;

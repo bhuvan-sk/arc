@@ -1,10 +1,11 @@
 import React, { useRef } from 'react';
 import { computeEdgeStyle } from '../lib/edgeStyle';
+import { COLORS, FONT_MONO } from '../theme/tokens';
 
 interface EdgePathProps {
   d: string;
   color: string;
-  nodeType: string;         // 'db' | 'svc' | 'queue' | 'infra' | 'ext'
+  layerId: string; // 'data' | 'api' | 'infra' — drives which marker/gradient defs to use
   transport: string;
   opacity: number;
   isTraced?: boolean;
@@ -20,7 +21,7 @@ interface EdgePathProps {
 export const EdgePath: React.FC<EdgePathProps> = ({
   d,
   color,
-  nodeType,
+  layerId,
   transport,
   opacity,
   isTraced = false,
@@ -32,19 +33,17 @@ export const EdgePath: React.FC<EdgePathProps> = ({
   const pathRef = useRef<SVGPathElement>(null);
   const styleConfig = computeEdgeStyle(transport, isTraced);
 
-  const markerId = isTraced ? `ar-${nodeType}-traced` : `ar-${nodeType}`;
+  const markerId = isTraced ? `ar-${layerId}-traced` : `ar-${layerId}`;
   const markerEnd = `url(#${markerId})`;
-  const markerStart = isBidirectional ? `url(#ar-${nodeType}-start)` : undefined;
+  const markerStart = isBidirectional ? `url(#ar-${layerId}-start)` : undefined;
 
   // Draw-in animation on reveal using pathLength trick
   const drawIn = isRevealing;
 
-  // Use gradient stroke for active layer; solid for dimmed
-  const strokePaint = isTraced
-    ? color
-    : `url(#edgegrad-${nodeType})`;
+  // Use gradient stroke for active layer; solid for dimmed/traced
+  const strokePaint = isTraced ? color : `url(#edgegrad-${layerId})`;
 
-  const glowFilter = isTraced ? `url(#glow-${nodeType})` : undefined;
+  const glowFilter = isTraced ? `url(#glow-${layerId})` : undefined;
 
   return (
     <g>
@@ -78,7 +77,7 @@ export const EdgePath: React.FC<EdgePathProps> = ({
           animation: drawIn
             ? 'drawIn .55s ease .32s both'
             : styleConfig.flowAnimation
-            ? 'dash 1.8s linear infinite'
+            ? 'travel 1.8s linear infinite'
             : 'none',
         }}
       />
@@ -112,15 +111,14 @@ const EdgeLabel: React.FC<{ x: number; y: number; label: string; color: string; 
           width: '100%',
           height: '100%',
           padding: '0 7px',
-          borderRadius: 6,
-          background: '#111113',
-          border: `1px solid ${color}4d`,
-          color,
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 9.5,
-          letterSpacing: '.03em',
+          borderRadius: 8,
+          background: 'rgba(10,13,26,.78)',
+          boxShadow: `inset 0 0 0 1px ${color}40`,
+          color: COLORS.textSecondary,
+          fontFamily: FONT_MONO,
+          fontSize: 9,
+          letterSpacing: '.02em',
           whiteSpace: 'nowrap',
-          textTransform: 'uppercase',
         }}
       >
         {label}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { COLORS, FONT_SANS, FONT_MONO } from '../theme/tokens';
 
 interface TopBarProps {
   title?: string;
@@ -14,12 +15,23 @@ interface TopBarProps {
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  ready: { label: 'Ready', color: '#46b980' },
-  ingesting: { label: 'Ingesting…', color: '#e5ad3b' },
-  parsing: { label: 'Parsing…', color: '#e5ad3b' },
-  bucketing: { label: 'Bucketing…', color: '#e5ad3b' },
-  narrating: { label: 'Narrating…', color: '#e5ad3b' },
-  failed: { label: 'Failed', color: '#e05f5f' },
+  ready: { label: 'Ready', color: COLORS.layers.api },
+  ingesting: { label: 'Ingesting…', color: COLORS.layers.infra },
+  parsing: { label: 'Parsing…', color: COLORS.layers.infra },
+  bucketing: { label: 'Bucketing…', color: COLORS.layers.infra },
+  narrating: { label: 'Narrating…', color: COLORS.layers.infra },
+  failed: { label: 'Failed', color: COLORS.fail },
+};
+
+const ghostBtn: React.CSSProperties = {
+  fontFamily: FONT_SANS,
+  fontSize: 12,
+  color: '#dfe3fb',
+  background: 'rgba(255,255,255,.06)',
+  border: 0,
+  borderRadius: 9,
+  padding: '7px 13px',
+  cursor: 'pointer',
 };
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -34,114 +46,116 @@ export const TopBar: React.FC<TopBarProps> = ({
   onExport,
   onOpenUpload,
 }) => {
-  const statusInfo = STATUS_LABELS[status] || { label: status, color: '#6a6a74' };
+  const statusInfo = STATUS_LABELS[status] || { label: status, color: COLORS.textFaint };
+
+  const viewModes: Array<'Document' | 'Both' | 'Canvas'> = ['Document', 'Both', 'Canvas'];
 
   return (
     <div
       style={{
         height: 48,
-        background: '#111113',
-        borderBottom: '1px solid #1d1d21',
+        flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
-        padding: '0 20px',
         gap: 16,
-        flexShrink: 0,
+        padding: '0 20px',
+        background: 'rgba(8,10,20,.72)',
+        boxShadow: '0 1px 0 rgba(255,255,255,.05), 0 12px 30px rgba(0,0,0,.35)',
         userSelect: 'none',
       }}
     >
       {/* Logo mark */}
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-        <rect x="2" y="2" width="9" height="9" rx="2" fill="#3b6fe5" />
-        <rect x="13" y="2" width="9" height="9" rx="2" fill="#a273f2" opacity=".6" />
-        <rect x="2" y="13" width="9" height="9" rx="2" fill="#46b980" opacity=".6" />
-        <rect x="13" y="13" width="9" height="9" rx="2" fill="#e05fb0" opacity=".4" />
-      </svg>
-
-      {/* Title */}
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#e1e1e6', letterSpacing: '-0.1px' }}>
-        {title}
+      <div
+        style={{
+          width: 22,
+          height: 22,
+          flexShrink: 0,
+          borderRadius: 8,
+          background: 'linear-gradient(150deg,#92a6ff,#4fd6b0)',
+          boxShadow: '0 0 18px rgba(146,166,255,.55)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <div style={{ width: 7, height: 7, borderRadius: 3, background: '#0b0e1d' }} />
       </div>
 
-      {/* Subtitle */}
-      {subtitle && (
-        <>
-          <span style={{ color: '#2e2e36', fontSize: 16 }}>·</span>
-          <span style={{ fontSize: 12, color: '#6a6a74' }}>{subtitle}</span>
-        </>
-      )}
+      {/* Title + subtitle */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 500, letterSpacing: '-.005em', color: '#eceffc' }}>{title}</span>
+        {subtitle && (
+          <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.textFaint, letterSpacing: '.02em' }}>
+            {subtitle}
+          </span>
+        )}
+      </div>
 
-      {/* Status indicator */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <div
+      {/* Status pill */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '4px 10px 4px 8px',
+          borderRadius: 20,
+          background: statusInfo.color + '1a',
+        }}
+      >
+        <span
           style={{
             width: 6,
             height: 6,
             borderRadius: '50%',
             background: statusInfo.color,
-            boxShadow: status === 'ready' ? `0 0 5px ${statusInfo.color}` : 'none',
+            boxShadow: `0 0 10px ${statusInfo.color}`,
           }}
         />
-        <span style={{ fontSize: 11, color: statusInfo.color }}>{statusInfo.label}</span>
+        <span
+          style={{
+            fontFamily: FONT_MONO,
+            fontSize: 8.5,
+            letterSpacing: '.06em',
+            textTransform: 'uppercase',
+            color: statusInfo.color,
+          }}
+        >
+          {statusInfo.label}
+        </span>
       </div>
 
       {/* Upload button */}
       {onOpenUpload && (
-        <button
-          onClick={onOpenUpload}
-          style={{
-            background: 'linear-gradient(135deg, #3b6fe5, #5a4cd1)',
-            border: 'none',
-            borderRadius: 6,
-            padding: '5px 12px',
-            color: '#ffffff',
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            marginLeft: 8,
-          }}
-        >
-          <span>↑</span> Upload PDF / Doc
+        <button onClick={onOpenUpload} style={ghostBtn}>
+          Upload PDF / Doc
         </button>
       )}
 
       <div style={{ flex: 1 }} />
 
       {/* View Mode Toggle */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 1,
-          background: '#0f0f11',
-          border: '1px solid #2e2e36',
-          borderRadius: 8,
-          padding: 2,
-        }}
-      >
-        {(['Document', 'Both', 'Canvas'] as const).map(mode => (
-          <button
-            key={mode}
-            onClick={() => onViewModeChange(mode)}
-            style={{
-              background: viewMode === mode ? '#26262c' : 'transparent',
-              border: 'none',
-              borderRadius: 6,
-              padding: '4px 12px',
-              color: viewMode === mode ? '#f2f2f4' : '#6a6a74',
-              fontFamily: 'Inter, sans-serif',
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all .15s',
-            }}
-          >
-            {mode}
-          </button>
-        ))}
+      <div style={{ display: 'flex', gap: 3, padding: 3, borderRadius: 11, background: 'rgba(255,255,255,.05)' }}>
+        {viewModes.map(mode => {
+          const active = viewMode === mode;
+          return (
+            <button
+              key={mode}
+              onClick={() => onViewModeChange(mode)}
+              style={{
+                fontFamily: FONT_SANS,
+                fontSize: 11.5,
+                padding: '5px 11px',
+                border: 0,
+                borderRadius: 8,
+                cursor: 'pointer',
+                background: active ? 'rgba(146,166,255,.22)' : 'transparent',
+                color: active ? '#f2f4ff' : '#8f97bd',
+              }}
+            >
+              {mode}
+            </button>
+          );
+        })}
       </div>
 
       {/* Zoom control */}
@@ -149,79 +163,43 @@ export const TopBar: React.FC<TopBarProps> = ({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
-          background: '#0f0f11',
-          border: '1px solid #2e2e36',
-          borderRadius: 8,
-          padding: '4px 10px',
+          gap: 8,
+          padding: '4px 8px',
+          borderRadius: 10,
+          background: 'rgba(255,255,255,.05)',
+          fontFamily: FONT_MONO,
+          fontSize: 10,
+          color: '#b6bcdd',
         }}
       >
-        <button
+        <span
+          style={{ cursor: 'pointer', color: '#8f97bd' }}
           onClick={() => onZoomChange(Math.max(50, zoom - 10))}
-          style={{ background: 'none', border: 'none', color: '#82828c', cursor: 'pointer', padding: 0, fontSize: 14, lineHeight: 1 }}
-        >−</button>
-        <span style={{ fontSize: 12, color: '#c8c8d1', minWidth: 36, textAlign: 'center' }}>
-          {zoom}%
+        >
+          −
         </span>
-        <button
+        <span style={{ width: 34, textAlign: 'center' }}>{zoom}%</span>
+        <span
+          style={{ cursor: 'pointer', color: '#8f97bd' }}
           onClick={() => onZoomChange(Math.min(200, zoom + 10))}
-          style={{ background: 'none', border: 'none', color: '#82828c', cursor: 'pointer', padding: 0, fontSize: 14, lineHeight: 1 }}
-        >+</button>
+        >
+          +
+        </span>
       </div>
 
       {/* Export Controls */}
       {onExport && status === 'ready' && (
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
-            onClick={() => onExport('pdf')}
-            style={{
-              background: '#26262c',
-              border: '1px solid #3a3a44',
-              borderRadius: 6,
-              padding: '4px 10px',
-              color: '#d6d6dd',
-              fontFamily: 'Inter, sans-serif',
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            Export PDF
-          </button>
-          <button
-            onClick={() => onExport('docx')}
-            style={{
-              background: '#26262c',
-              border: '1px solid #3a3a44',
-              borderRadius: 6,
-              padding: '4px 10px',
-              color: '#d6d6dd',
-              fontFamily: 'Inter, sans-serif',
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            Export DOCX
-          </button>
+        <div style={{ display: 'flex', gap: 7 }}>
+          <button onClick={() => onExport('pdf')} style={ghostBtn}>Export PDF</button>
+          <button onClick={() => onExport('docx')} style={ghostBtn}>Export DOCX</button>
         </div>
       )}
 
-      {/* Session ID pill */}
+      {/* Session ID chip */}
       {sessionId && (
-        <div
-          style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 10,
-            color: '#3a3a44',
-            padding: '3px 8px',
-            background: '#0f0f11',
-            border: '1px solid #1d1d21',
-            borderRadius: 5,
-          }}
-        >
+        <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.textGhost }}>
           {sessionId.slice(0, 16)}
-        </div>
+        </span>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { COLORS } from '../theme/tokens';
+import { COLORS, FONT_SANS, FONT_MONO } from '../theme/tokens';
 
 interface StatusSplashProps {
   status: string;
@@ -12,9 +12,22 @@ interface StatusSplashProps {
   onCheckAgain?: () => void;
 }
 
+const STAGE_LABELS: Record<string, string> = {
+  ingesting: 'Reading your diagram…',
+  parsing: 'Extracting components…',
+  bucketing: 'Bucketing into layers…',
+  narrating: 'Generating layer narratives…',
+};
+
+const STAGES = [
+  { key: 'ingesting', label: '01 ingest' },
+  { key: 'parsing', label: '02 parse' },
+  { key: 'bucketing', label: '03 bucket' },
+  { key: 'narrating', label: '04 narrate' },
+];
+
 export const StatusSplash: React.FC<StatusSplashProps> = ({ status, error, pollTimedOut, onCheckAgain }) => {
-  const stages = ['ingesting', 'parsing', 'bucketing', 'narrating'];
-  const currentStageIdx = stages.indexOf(status);
+  const currentStageIdx = STAGES.findIndex(s => s.key === status);
 
   return (
     <div
@@ -25,43 +38,70 @@ export const StatusSplash: React.FC<StatusSplashProps> = ({ status, error, pollT
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#0f0f11',
-        gap: 24,
-        fontFamily: 'Inter, sans-serif',
+        background: COLORS.fieldGradient,
+        fontFamily: FONT_SANS,
       }}
     >
-      {/* Animated logo */}
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style={{ animation: 'fadeUp .4s ease' }}>
-        <rect x="2" y="2" width="9" height="9" rx="2" fill="#3b6fe5" style={{ animation: 'popIn .3s ease .1s both' }} />
-        <rect x="13" y="2" width="9" height="9" rx="2" fill="#a273f2" opacity=".8" style={{ animation: 'popIn .3s ease .2s both' }} />
-        <rect x="2" y="13" width="9" height="9" rx="2" fill="#46b980" opacity=".8" style={{ animation: 'popIn .3s ease .3s both' }} />
-        <rect x="13" y="13" width="9" height="9" rx="2" fill="#e05fb0" opacity=".5" style={{ animation: 'popIn .3s ease .4s both' }} />
-      </svg>
+      {/* Logo mark */}
+      <div style={{ position: 'relative', width: 120, height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 34 }}>
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(circle at 40% 35%, rgba(146,166,255,.4), transparent 62%)', filter: 'blur(16px)' }} />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 14,
+            borderRadius: 22,
+            background: 'linear-gradient(150deg,#92a6ff,#4fd6b0)',
+            boxShadow: '0 0 40px rgba(146,166,255,.5)',
+            animation: 'spinslow 6s linear infinite',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={{ width: 16, height: 16, borderRadius: 7, background: '#0a0d1a' }} />
+        </div>
+      </div>
 
       {error ? (
-        <div style={{ color: '#e05f5f', fontSize: 14, textAlign: 'center', maxWidth: 340 }}>
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>Pipeline failed</div>
-          <div style={{ fontSize: 12, color: '#a9a9b3' }}>{error}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 540 }}>
+          <div style={{ fontSize: 28, fontWeight: 400, letterSpacing: '-.022em', color: COLORS.fail, marginBottom: 14 }}>
+            Pipeline failed
+          </div>
+          <div
+            style={{
+              borderRadius: 16,
+              padding: '16px 20px',
+              background: 'rgba(255,143,158,.12)',
+              boxShadow: 'inset 0 0 0 1px rgba(255,143,158,.4), 0 0 50px rgba(255,143,158,.12)',
+              textAlign: 'center',
+              marginBottom: 40,
+            }}
+          >
+            <div style={{ fontSize: 14, lineHeight: 1.55, color: '#ffd0d6' }}>{error}</div>
+          </div>
         </div>
       ) : pollTimedOut ? (
-        <div style={{ color: '#e1e1e6', fontSize: 14, textAlign: 'center', maxWidth: 340 }}>
-          <div style={{ fontWeight: 600, marginBottom: 6, color: '#c9a227' }}>Still working…</div>
-          <div style={{ fontSize: 12, color: '#a9a9b3', marginBottom: 16 }}>
-            This is taking longer than usual — large documents can take a few minutes.
-            It hasn't failed; we just stopped watching. Check again to see if it's ready.
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 540 }}>
+          <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: '-.022em', color: '#e6e9fb', marginBottom: 14 }}>
+            Still working…
+          </div>
+          <div style={{ borderRadius: 16, padding: '16px 20px', background: 'rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.08)', textAlign: 'center', marginBottom: 26 }}>
+            <div style={{ fontSize: 14, lineHeight: 1.55, fontWeight: 300, color: COLORS.textSecondary }}>
+              This is taking longer than usual — large documents can take a few minutes. It hasn't failed; we just stopped watching.
+            </div>
           </div>
           <button
             onClick={onCheckAgain}
             style={{
-              padding: '8px 16px',
-              borderRadius: 8,
-              border: '1px solid #3b6fe5',
-              background: 'transparent',
-              color: '#3b6fe5',
+              fontFamily: FONT_SANS,
               fontSize: 13,
-              fontWeight: 600,
+              color: '#0b0e1d',
+              background: '#b6bcdd',
+              border: 0,
+              borderRadius: 11,
+              padding: '11px 19px',
               cursor: 'pointer',
-              fontFamily: 'Inter, sans-serif',
+              marginBottom: 40,
             }}
           >
             Check again
@@ -69,48 +109,43 @@ export const StatusSplash: React.FC<StatusSplashProps> = ({ status, error, pollT
         </div>
       ) : (
         <>
-          <div style={{ color: '#e1e1e6', fontSize: 15, fontWeight: 600 }}>
-            {status === 'ingesting' && 'Reading your diagram…'}
-            {status === 'parsing' && 'Extracting architecture graph…'}
-            {status === 'bucketing' && 'Bucketing into layers…'}
-            {status === 'narrating' && 'Generating layer narratives…'}
-            {!stages.includes(status) && 'Processing…'}
+          <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: '-.022em', color: '#f6f7ff', marginBottom: 12 }}>
+            {STAGE_LABELS[status] || 'Processing…'}
+          </div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '.07em', textTransform: 'uppercase', color: COLORS.textDim, marginBottom: 40 }}>
+            stage {String(Math.max(currentStageIdx, 0) + 1).padStart(2, '0')} of 04
           </div>
 
-          {/* Stage progress dots */}
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            {stages.map((stage, i) => {
+          <div style={{ display: 'flex', gap: 8, width: 580 }}>
+            {STAGES.map((stage, i) => {
               const isDone = i < currentStageIdx;
               const isCurrent = i === currentStageIdx;
+              const color = isDone ? COLORS.layers.api : isCurrent ? COLORS.layers.data : 'rgba(255,255,255,.1)';
               return (
-                <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div key={stage.key} style={{ flex: 1 }}>
                   <div
                     style={{
-                      width: isCurrent ? 10 : 7,
-                      height: isCurrent ? 10 : 7,
-                      borderRadius: '50%',
-                      background: isDone ? '#46b980' : isCurrent ? COLORS.accent : '#2e2e36',
-                      boxShadow: isCurrent ? `0 0 8px ${COLORS.accent}` : 'none',
-                      transition: 'all .3s',
+                      height: 4,
+                      borderRadius: 3,
+                      background: color,
+                      boxShadow: isDone || isCurrent ? `0 0 12px ${color}` : 'none',
                     }}
                   />
-                  {i < stages.length - 1 && (
-                    <div
-                      style={{
-                        width: 24,
-                        height: 1,
-                        background: isDone ? '#46b980' : '#2e2e36',
-                        transition: 'background .3s',
-                      }}
-                    />
-                  )}
+                  <div
+                    style={{
+                      fontFamily: FONT_MONO,
+                      fontSize: 8,
+                      letterSpacing: '.06em',
+                      textTransform: 'uppercase',
+                      color: isCurrent ? COLORS.textSecondary : isDone ? COLORS.layers.api : COLORS.textGhost,
+                      paddingTop: 10,
+                    }}
+                  >
+                    {stage.label}
+                  </div>
                 </div>
               );
             })}
-          </div>
-
-          <div style={{ fontSize: 12, color: '#3a3a44', fontFamily: "'JetBrains Mono', monospace" }}>
-            {status}
           </div>
         </>
       )}

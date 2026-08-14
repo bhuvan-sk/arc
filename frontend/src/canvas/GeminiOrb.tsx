@@ -1,4 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
+import { FONT_MONO } from '../theme/tokens';
 
 export type OrbState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -7,210 +8,128 @@ interface GeminiOrbProps {
   size?: number;
 }
 
-const CAPTIONS: Record<OrbState, string> = {
-  idle: 'Loose cloud drifting in slow orbit.',
-  listening: 'Cloud contracts, brightens, holds steady.',
-  thinking: 'Swarm spirals into a searching double-orbit.',
-  speaking: 'Bursts outward in sync with each phrase.',
-};
-
-const STATE_COLORS: Record<OrbState, string> = {
-  idle: 'rgba(255,255,255,.32)',
-  listening: '#4c8df6',
-  thinking: '#a273f2',
-  speaking: '#46b980',
-};
-
-function fibonacciSphere(n: number): [number, number, number][] {
-  const pts: [number, number, number][] = [];
-  const offset = 2 / n;
-  const inc = Math.PI * (3 - Math.sqrt(5));
-  for (let i = 0; i < n; i++) {
-    const y = i * offset - 1 + offset / 2;
-    const r = Math.sqrt(Math.max(0, 1 - y * y));
-    const phi = i * inc;
-    pts.push([Math.cos(phi) * r, y, Math.sin(phi) * r]);
-  }
-  return pts;
+interface VoiceStyle {
+  label: string;
+  labelColor: string;
+  core: string;
+  shadow: string;
+  glow: string;
+  ring: string;
+  ring2: string;
+  haloDur: string;
+  breatheDur: string;
+  isListening: boolean;
+  isThinking: boolean;
+  isSpeaking: boolean;
 }
 
-const TARGETS: Record<OrbState, { radiusScale: number; speed: number; wobble: number; burst: number }> = {
-  idle: { radiusScale: 1, speed: 0.18, wobble: 0.06, burst: 0 },
-  listening: { radiusScale: 0.68, speed: 0.09, wobble: 0.02, burst: 0 },
-  thinking: { radiusScale: 0.86, speed: 0.55, wobble: 0.55, burst: 0 },
-  speaking: { radiusScale: 1.02, speed: 0.3, wobble: 0.08, burst: 1 },
+const STYLES: Record<OrbState, VoiceStyle> = {
+  idle: {
+    label: 'idle — tap to speak', labelColor: '#8f97bd',
+    core: 'radial-gradient(circle at 34% 30%,#cdd6ff,#7f92f5 45%,#3c4699 100%)',
+    shadow: '0 0 44px rgba(146,166,255,.45)', glow: 'rgba(146,166,255,.42)',
+    ring: 'rgba(146,166,255,.4)', ring2: 'rgba(146,166,255,.25)', haloDur: '3.6s', breatheDur: '4.2s',
+    isListening: false, isThinking: false, isSpeaking: false,
+  },
+  listening: {
+    label: 'listening', labelColor: '#dfe3fb',
+    core: 'radial-gradient(circle at 34% 30%,#e6ebff,#8ea2ff 42%,#4552b8 100%)',
+    shadow: '0 0 70px rgba(146,166,255,.85)', glow: 'rgba(146,166,255,.7)',
+    ring: 'rgba(179,192,255,.75)', ring2: 'rgba(179,192,255,.45)', haloDur: '1.8s', breatheDur: '1.6s',
+    isListening: true, isThinking: false, isSpeaking: false,
+  },
+  thinking: {
+    label: 'thinking', labelColor: '#a9b5ff',
+    core: 'radial-gradient(circle at 34% 30%,#aab5e8,#5f6bb8 45%,#2c3372 100%)',
+    shadow: '0 0 34px rgba(146,166,255,.35)', glow: 'rgba(146,166,255,.3)',
+    ring: 'rgba(146,166,255,.2)', ring2: 'rgba(146,166,255,.1)', haloDur: '5s', breatheDur: '3s',
+    isListening: false, isThinking: true, isSpeaking: false,
+  },
+  speaking: {
+    label: 'speaking', labelColor: '#7fe6c6',
+    core: 'radial-gradient(circle at 34% 30%,#d8fff4,#5fdcb8 42%,#1c6d5a 100%)',
+    shadow: '0 0 66px rgba(79,214,176,.75)', glow: 'rgba(79,214,176,.6)',
+    ring: 'rgba(79,214,176,.6)', ring2: 'rgba(79,214,176,.3)', haloDur: '1.4s', breatheDur: '1.1s',
+    isListening: false, isThinking: false, isSpeaking: true,
+  },
 };
 
-export const GeminiOrb: React.FC<GeminiOrbProps> = ({ state = 'idle', size = 168 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef<OrbState>(state);
-  stateRef.current = state;
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-    ctx.scale(dpr, dpr);
-
-    const cx = size / 2;
-    const cy = size / 2;
-    const baseR = 54;
-    const N = 90;
-    const pts = fibonacciSphere(N);
-    const phases = pts.map(() => Math.random() * Math.PI * 2);
-
-    let cur = { ...TARGETS[stateRef.current] };
-    let angleY = 0;
-    let angleX = 0;
-    let scanPos = 0;
-    let last = performance.now();
-    let animId: number;
-
-    function loop(now: number) {
-      const dt = Math.min((now - last) / 1000, 0.05);
-      last = now;
-      const t = now / 1000;
-      const currentState = stateRef.current;
-      const tgt = TARGETS[currentState] || TARGETS.idle;
-
-      for (const k in cur) {
-        const key = k as keyof typeof cur;
-        cur[key] += (tgt[key] - cur[key]) * Math.min(1, dt * 3.2);
-      }
-
-      angleY += cur.speed * dt;
-      if (currentState === 'thinking') {
-        angleX += cur.speed * 0.5 * dt * cur.wobble * 2;
-      }
-      scanPos = Math.sin(t * 0.7);
-
-      ctx!.clearRect(0, 0, size, size);
-      const amp = cur.burst * (0.16 * Math.sin(t * 6) + 0.11 * Math.sin(t * 13.7) + 0.08 * Math.sin(t * 22));
-
-      for (let i = 0; i < N; i++) {
-        const [x, y, z] = pts[i];
-        const cY = Math.cos(angleY);
-        const sY = Math.sin(angleY);
-        const x1 = x * cY - z * sY;
-        const z1 = x * sY + z * cY;
-        const cX = Math.cos(angleX);
-        const sX = Math.sin(angleX);
-        const y1 = y * cX - z1 * sX;
-        const z2 = y * sX + z1 * cX;
-
-        const ampI = amp * (0.7 + 0.3 * Math.sin(t * 3 + i));
-        const r = baseR * cur.radiusScale * (1 + ampI);
-        const scale = 1 + z2 * 0.35;
-        const px = cx + x1 * r * scale;
-        const py = cy + y1 * r * scale;
-
-        let alpha = 0.22 + 0.55 * ((z2 + 1) / 2);
-        alpha *= 0.7 + 0.3 * Math.sin(t * 2 + phases[i]);
-        if (currentState === 'thinking' && Math.abs(y1 - scanPos) < 0.16) {
-          alpha = Math.min(1, alpha + 0.45);
-        }
-
-        ctx!.beginPath();
-        ctx!.fillStyle = `rgba(255,255,255,${Math.max(0, Math.min(1, alpha)).toFixed(3)})`;
-        ctx!.arc(px, py, 1.1 + 1.5 * ((z2 + 1) / 2), 0, Math.PI * 2);
-        ctx!.fill();
-      }
-
-      animId = requestAnimationFrame(loop);
-    }
-
-    animId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animId);
-  }, [size]);
+export const GeminiOrb: React.FC<GeminiOrbProps> = ({ state = 'idle', size = 196 }) => {
+  const s = STYLES[state] || STYLES.idle;
 
   return (
     <div
       style={{
-        background: '#0b0b0d',
-        border: '1px solid rgba(255,255,255,.08)',
-        borderRadius: 20,
-        padding: '16px 16px 18px',
+        height: size,
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 12,
-        boxShadow: '0 20px 50px rgba(0,0,0,.35)',
-        width: '100%',
-        boxSizing: 'border-box',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
+        justifyContent: 'center',
+        gap: 16,
+        overflow: 'hidden',
       }}
     >
-      {/* Panel Header */}
       <div
         style={{
-          alignSelf: 'flex-start',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 7,
-          font: '10px/1 ui-monospace, Menlo, monospace',
-          letterSpacing: '.14em',
-          textTransform: 'uppercase',
-          color: 'rgba(255,255,255,.42)',
+          position: 'absolute',
+          width: 220,
+          height: 220,
+          borderRadius: '50%',
+          background: `radial-gradient(circle at 40% 35%, ${s.glow}, transparent 60%)`,
+          filter: 'blur(28px)',
+          animation: 'drift 9s ease-in-out infinite',
         }}
-      >
-        <span
+      />
+      <div style={{ position: 'relative', width: 112, height: 112, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', boxShadow: `inset 0 0 0 1px ${s.ring}`, animation: `haloout ${s.haloDur} ease-out infinite` }} />
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', boxShadow: `inset 0 0 0 1px ${s.ring2}`, animation: `haloout ${s.haloDur} ease-out infinite 1.2s` }} />
+        {s.isThinking && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 6,
+              borderRadius: '50%',
+              border: '1px solid transparent',
+              borderTopColor: '#b3c0ff',
+              borderRightColor: 'rgba(179,192,255,.3)',
+              animation: 'spinslow 1.6s linear infinite',
+            }}
+          />
+        )}
+        <div
           style={{
-            width: 5,
-            height: 5,
+            width: 74,
+            height: 74,
             borderRadius: '50%',
-            background: '#f5f5f7',
-            animation: 'dotPulse 2.4s ease-in-out infinite',
+            background: s.core,
+            boxShadow: `${s.shadow}, inset 0 -8px 18px rgba(10,13,30,.6)`,
+            animation: `breathe ${s.breatheDur} ease-in-out infinite`,
           }}
         />
-        GEMINI LIVE · VOICE & CHAT
+        {s.isListening && (
+          <div style={{ position: 'absolute', display: 'flex', alignItems: 'center', gap: 4, height: 34 }}>
+            {[12, 22, 32, 20, 11].map((h, i) => (
+              <span
+                key={i}
+                style={{
+                  width: 3,
+                  height: h,
+                  borderRadius: 2,
+                  background: i === 2 ? '#ffffff' : '#eaeeff',
+                  animation: `bar .9s ease-in-out infinite ${i * 0.12}s`,
+                }}
+              />
+            ))}
+          </div>
+        )}
+        {s.isSpeaking && (
+          <div style={{ position: 'absolute', inset: -14, borderRadius: '50%', boxShadow: 'inset 0 0 0 1px rgba(79,214,176,.5)', animation: 'haloout 1.4s ease-out infinite' }} />
+        )}
       </div>
-
-      {/* Canvas Orb Stage */}
-      <div style={{ width: size, height: size, display: 'grid', placeItems: 'center', flex: 'none' }}>
-        <canvas ref={canvasRef} style={{ width: size, height: size }} />
-      </div>
-
-      {/* Live state readout */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: STATE_COLORS[state],
-            boxShadow: state !== 'idle' ? `0 0 6px ${STATE_COLORS[state]}` : 'none',
-            transition: 'background .2s, box-shadow .2s',
-          }}
-        />
-        <span
-          style={{
-            font: '10px/1 ui-monospace, Menlo, monospace',
-            letterSpacing: '.1em',
-            textTransform: 'uppercase',
-            color: 'rgba(255,255,255,.55)',
-          }}
-        >
-          {state}
-        </span>
-      </div>
-
-      {/* State Caption */}
-      <div
-        style={{
-          font: '11px/1.45 system-ui, sans-serif',
-          color: 'rgba(255,255,255,.42)',
-          textAlign: 'center',
-          minHeight: 28,
-          maxWidth: 230,
-        }}
-      >
-        {CAPTIONS[state] || CAPTIONS.idle}
-      </div>
+      <span style={{ fontFamily: FONT_MONO, fontSize: 8.5, letterSpacing: '.08em', textTransform: 'uppercase', color: s.labelColor }}>
+        {s.label}
+      </span>
     </div>
   );
 };

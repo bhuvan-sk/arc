@@ -1,11 +1,31 @@
 import React, { useState, useRef } from 'react';
-import { COLORS } from '../theme/tokens';
+import { COLORS, FONT_SANS, FONT_MONO } from '../theme/tokens';
 
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpload: (files: File[], mode: 'A' | 'B', problemStatement?: string, title?: string) => void;
 }
+
+const kicker: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 8,
+  letterSpacing: '.06em',
+  textTransform: 'uppercase',
+  color: COLORS.textFaint,
+};
+
+const fieldBox: React.CSSProperties = {
+  width: '100%',
+  borderRadius: 11,
+  background: 'rgba(255,255,255,.06)',
+  padding: '11px 12px',
+  fontSize: 12.5,
+  color: '#e6e9fb',
+  border: 'none',
+  outline: 'none',
+  fontFamily: FONT_SANS,
+};
 
 export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpload }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -21,21 +41,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const filesArray = Array.from(e.dataTransfer.files);
-      setSelectedFiles(prev => [...prev, ...filesArray]);
+      setSelectedFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const filesArray = Array.from(e.target.files);
-      setSelectedFiles(prev => [...prev, ...filesArray]);
+      setSelectedFiles(prev => [...prev, ...Array.from(e.target.files!)]);
     }
   };
 
-  const removeFile = (idx: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
-  };
+  const removeFile = (idx: number) => setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,76 +66,56 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         position: 'fixed',
         inset: 0,
         zIndex: 1000,
-        background: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(4px)',
+        background: 'rgba(5,6,13,.7)',
+        backdropFilter: 'blur(6px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontFamily: 'Inter, sans-serif',
+        fontFamily: FONT_SANS,
       }}
       onClick={onClose}
     >
       <div
         style={{
-          width: 520,
-          background: '#161619',
-          border: '1px solid #26262c',
-          borderRadius: 14,
-          boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+          width: 660,
+          borderRadius: 20,
+          background: 'linear-gradient(180deg,#171c34,#101426)',
+          boxShadow: '0 50px 110px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.1)',
+          animation: 'lift .3s cubic-bezier(.2,.7,.2,1) both',
           overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Modal Header */}
-        <div
-          style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid #26262c',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#f2f2f4' }}>
-              Upload Architecture Document
-            </div>
-            <div style={{ fontSize: 12, color: '#82828c', marginTop: 2 }}>
-              Upload PDF diagrams, technical specs, or images to analyze
-            </div>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '18px 24px' }}>
+          <span style={{ fontSize: 15, fontWeight: 500, color: '#eceffc' }}>New session</span>
+          <div style={{ flex: 1 }} />
           <button
             onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#82828c',
-              fontSize: 18,
-              cursor: 'pointer',
-            }}
+            style={{ background: 'rgba(255,255,255,.07)', border: 0, borderRadius: 9, width: 28, height: 28, color: '#b6bcdd', fontSize: 15, cursor: 'pointer', fontFamily: FONT_SANS }}
           >
-            ✕
+            ×
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Dropzone */}
+        <form onSubmit={handleSubmit} style={{ padding: '0 24px 24px' }}>
           <div
             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleFileDrop}
             onClick={() => fileInputRef.current?.click()}
             style={{
-              border: `2px dashed ${isDragging ? COLORS.accent : '#2e2e36'}`,
-              borderRadius: 10,
-              padding: '28px 20px',
-              textAlign: 'center',
-              background: isDragging ? '#1e2638' : '#111113',
+              borderRadius: 16,
+              height: 140,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
               cursor: 'pointer',
-              transition: 'all .15s',
+              background: isDragging
+                ? 'radial-gradient(80% 100% at 50% 0%, rgba(146,166,255,.28), rgba(255,255,255,.04))'
+                : 'radial-gradient(80% 100% at 50% 0%, rgba(146,166,255,.16), rgba(255,255,255,.03))',
+              boxShadow: `inset 0 0 0 1px ${isDragging ? 'rgba(146,166,255,.65)' : 'rgba(146,166,255,.28)'}`,
             }}
           >
             <input
@@ -130,188 +126,96 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
               onChange={handleFileSelect}
               style={{ display: 'none' }}
             />
-            <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#e1e1e6', marginBottom: 4 }}>
-              Click or drag PDF diagram / architecture doc here
+            <div style={{ width: 40, height: 40, borderRadius: 14, background: 'rgba(146,166,255,.16)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24">
+                <path d="M12 17V5M7 10l5-5 5 5" stroke="#b3c0ff" strokeWidth={1.6} fill="none" strokeLinecap="round" />
+                <path d="M4 20h16" stroke="rgba(179,192,255,.5)" strokeWidth={1.6} strokeLinecap="round" />
+              </svg>
             </div>
-            <div style={{ fontSize: 12, color: '#6a6a74' }}>
-              Supports PDF, PNG, JPG, DOCX, TXT, Markdown
-            </div>
+            <div style={{ fontSize: 13.5, color: '#e6e9fb' }}>Drop a file, or <span style={{ color: '#b3c0ff' }}>browse</span></div>
+            <div style={{ ...kicker, fontSize: 7.5 }}>pdf · png · jpg · docx · txt · md</div>
           </div>
 
-          {/* Selected Files List */}
           {selectedFiles.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#6a6a74', textTransform: 'uppercase' }}>
-                Selected Files ({selectedFiles.length})
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
               {selectedFiles.map((file, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    background: '#0f0f11',
-                    border: '1px solid #26262c',
-                    borderRadius: 6,
-                    fontSize: 12,
-                  }}
-                >
-                  <span style={{ color: '#d6d6dd', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 380 }}>
-                    {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 9, background: 'rgba(255,255,255,.05)' }}>
+                  <span style={{ fontSize: 12, color: '#c2c8e8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 460 }}>
+                    {file.name} <span style={{ fontFamily: FONT_MONO, fontSize: 9.5, color: COLORS.textGhost }}>({(file.size / 1024).toFixed(1)} KB)</span>
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(i)}
-                    style={{ background: 'none', border: 'none', color: '#e05f5f', cursor: 'pointer', fontSize: 14 }}
-                  >
-                    ✕
+                  <button type="button" onClick={() => removeFile(i)} style={{ background: 'none', border: 0, color: COLORS.fail, cursor: 'pointer', fontSize: 13, fontFamily: FONT_SANS }}>
+                    ×
                   </button>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Optional Title */}
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#82828c', marginBottom: 6 }}>
-              Architecture Title (Optional)
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. Order Processing Engine"
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                background: '#0f0f11',
-                border: '1px solid #2e2e36',
-                borderRadius: 7,
-                color: '#e1e1e6',
-                fontFamily: 'Inter, sans-serif',
-                fontSize: 13,
-                outline: 'none',
-              }}
-            />
-          </div>
-
-          {/* Optional Problem Statement */}
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#82828c', marginBottom: 6 }}>
-              Context / Problem Statement (Optional)
-            </label>
-            <textarea
-              value={problemStatement}
-              onChange={e => setProblemStatement(e.target.value)}
-              placeholder="Describe scale targets, SLAs, or known architectural bottlenecks…"
-              rows={2}
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                background: '#0f0f11',
-                border: '1px solid #2e2e36',
-                borderRadius: 7,
-                color: '#e1e1e6',
-                fontFamily: 'Inter, sans-serif',
-                fontSize: 13,
-                outline: 'none',
-                resize: 'none',
-              }}
-            />
-          </div>
-
-          {/* Analysis Mode Selector */}
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#82828c', marginBottom: 6 }}>
-              Analysis Mode
-            </label>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                type="button"
-                onClick={() => setMode('A')}
-                style={{
-                  flex: 1,
-                  padding: '10px 12px',
-                  background: mode === 'A' ? '#1e2a47' : '#0f0f11',
-                  border: `1px solid ${mode === 'A' ? COLORS.accent : '#2e2e36'}`,
-                  borderRadius: 8,
-                  color: mode === 'A' ? '#f2f2f4' : '#82828c',
-                  fontFamily: 'Inter, sans-serif',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                <div>Mode A: Upload Only</div>
-                <div style={{ fontSize: 11, fontWeight: 400, color: '#6a6a74', marginTop: 2 }}>
-                  Extract solely what is explicitly stated in your file
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMode('B')}
-                style={{
-                  flex: 1,
-                  padding: '10px 12px',
-                  background: mode === 'B' ? '#2e1e47' : '#0f0f11',
-                  border: `1px solid ${mode === 'B' ? '#a273f2' : '#2e2e36'}`,
-                  borderRadius: 8,
-                  color: mode === 'B' ? '#f2f2f4' : '#82828c',
-                  fontFamily: 'Inter, sans-serif',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                <div>Mode B: Research Mode</div>
-                <div style={{ fontSize: 11, fontWeight: 400, color: '#6a6a74', marginTop: 2 }}>
-                  Fill empty layers from public architectural best practices
-                </div>
-              </button>
+          <div style={{ display: 'flex', gap: 14, marginTop: 18 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ ...kicker, marginBottom: 8 }}>Title</div>
+              <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Optional" style={fieldBox} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ ...kicker, marginBottom: 8 }}>Mode</div>
+              <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 12, background: 'rgba(255,255,255,.05)' }}>
+                <button
+                  type="button"
+                  onClick={() => setMode('A')}
+                  style={{
+                    flex: 1, padding: 8, borderRadius: 9, fontSize: 12, textAlign: 'center', border: 0, cursor: 'pointer', fontFamily: FONT_SANS,
+                    color: mode === 'A' ? '#0b0e1d' : '#b6bcdd',
+                    background: mode === 'A' ? 'linear-gradient(140deg,#c8d1ff,#92a6ff)' : 'transparent',
+                  }}
+                >
+                  A · Upload
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('B')}
+                  style={{
+                    flex: 1, padding: 8, borderRadius: 9, fontSize: 12, textAlign: 'center', border: 0, cursor: 'pointer', fontFamily: FONT_SANS,
+                    color: mode === 'B' ? '#0b0e1d' : '#b6bcdd',
+                    background: mode === 'B' ? 'linear-gradient(140deg,#c8d1ff,#92a6ff)' : 'transparent',
+                  }}
+                >
+                  B · Research
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Submit Action */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: '9px 16px',
-                background: 'transparent',
-                border: '1px solid #2e2e36',
-                borderRadius: 7,
-                color: '#82828c',
-                fontFamily: 'Inter, sans-serif',
-                fontSize: 13,
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
+          <div style={{ marginTop: 18 }}>
+            <div style={{ ...kicker, marginBottom: 8 }}>Context</div>
+            <textarea
+              value={problemStatement}
+              onChange={e => setProblemStatement(e.target.value)}
+              placeholder="Optional problem statement"
+              rows={2}
+              style={{ ...fieldBox, resize: 'none', height: 54 }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 22 }}>
             <button
               type="submit"
               disabled={selectedFiles.length === 0}
               style={{
-                padding: '9px 20px',
-                background: selectedFiles.length > 0 ? COLORS.accent : '#2e2e36',
-                border: 'none',
-                borderRadius: 7,
-                color: '#fff',
-                fontFamily: 'Inter, sans-serif',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: selectedFiles.length > 0 ? 'pointer' : 'default',
+                fontFamily: FONT_SANS,
+                fontSize: 13.5,
+                fontWeight: 500,
+                color: '#0b0e1d',
+                background: selectedFiles.length > 0 ? 'linear-gradient(140deg,#c8d1ff,#92a6ff)' : 'rgba(255,255,255,.08)',
+                border: 0,
+                borderRadius: 12,
+                padding: '12px 21px',
+                cursor: selectedFiles.length > 0 ? 'pointer' : 'not-allowed',
+                boxShadow: selectedFiles.length > 0 ? '0 12px 30px rgba(146,166,255,.35)' : 'none',
               }}
             >
-              Upload & Generate Architecture
+              Parse &amp; generate
             </button>
+            <span style={{ ...kicker }}>current session stays open</span>
           </div>
         </form>
       </div>

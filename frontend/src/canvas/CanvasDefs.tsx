@@ -1,29 +1,37 @@
 import React from 'react';
 import { FAMILIES } from '../icons/families';
-import { COLORS } from '../theme/tokens';
+import { COLORS, LAYER_IDS } from '../theme/tokens';
 
-const ARROW_TYPES = ['db', 'svc', 'queue', 'infra', 'ext'] as const;
-const TYPE_COLORS: Record<string, string> = {
-  db: COLORS.types.db,
-  svc: COLORS.types.svc,
-  queue: COLORS.types.queue,
-  infra: COLORS.types.infra,
-  ext: COLORS.types.ext,
+const LAYER_COLORS: Record<string, string> = {
+  data: COLORS.layers.data,
+  api: COLORS.layers.api,
+  infra: COLORS.layers.infra,
 };
 
 export const CanvasDefs: React.FC = () => {
   return (
     <defs>
-      {/* ── Node shadow ──────────────────────────────────────────────────── */}
-      <filter id="nodeShadow" x="-40%" y="-40%" width="180%" height="180%">
-        <feDropShadow dx="0" dy="5" stdDeviation="7" floodColor="#000000" floodOpacity="0.55" />
+      {/* ── Slab fill for node cards ─────────────────────────────────────── */}
+      <linearGradient id="slab" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor={COLORS.slabTop} />
+        <stop offset="1" stopColor={COLORS.slabBottom} />
+      </linearGradient>
+
+      {/* ── Drop shadow for slabs ─────────────────────────────────────────── */}
+      <filter id="nodeShadow" x="-40%" y="-40%" width="180%" height="200%">
+        <feDropShadow dx="0" dy="7" stdDeviation="9" floodColor="#03040a" floodOpacity=".7" />
       </filter>
 
-      {/* ── Edge glow filter ─────────────────────────────────────────────── */}
-      {ARROW_TYPES.map(t => (
-        <filter key={`glow-${t}`} id={`glow-${t}`} x="-60%" y="-60%" width="220%" height="220%">
+      {/* ── Soft glow ellipse blur (under "stated" node slabs) ─────────────── */}
+      <filter id="softGlow" x="-60%" y="-200%" width="220%" height="500%">
+        <feGaussianBlur stdDeviation="6" />
+      </filter>
+
+      {/* ── Edge glow filter, one per layer ─────────────────────────────────── */}
+      {LAYER_IDS.map(id => (
+        <filter key={`glow-${id}`} id={`glow-${id}`} x="-60%" y="-60%" width="220%" height="220%">
           <feGaussianBlur stdDeviation="3" result="blur" />
-          <feFlood floodColor={TYPE_COLORS[t]} floodOpacity="0.6" result="color" />
+          <feFlood floodColor={LAYER_COLORS[id]} floodOpacity="0.6" result="color" />
           <feComposite in="color" in2="blur" operator="in" result="shadow" />
           <feMerge>
             <feMergeNode in="shadow" />
@@ -32,65 +40,31 @@ export const CanvasDefs: React.FC = () => {
         </filter>
       ))}
 
-      {/* ── Arrow markers (open chevron, sharper look) ────────────────────── */}
-      {ARROW_TYPES.map(t => (
-        <React.Fragment key={t}>
-          {/* Solid arrowhead */}
-          <marker
-            id={`ar-${t}`}
-            viewBox="0 0 10 10"
-            refX="9"
-            refY="5"
-            markerWidth="7"
-            markerHeight="7"
-            orient="auto-start-reverse"
-          >
-            <path
-              d="M0 1L9 5L0 9L2.5 5Z"
-              fill={TYPE_COLORS[t]}
-            />
+      {/* ── Arrow markers, one set per layer ────────────────────────────────── */}
+      {LAYER_IDS.map(id => (
+        <React.Fragment key={id}>
+          <marker id={`ar-${id}`} viewBox="0 0 9 9" refX="7.5" refY="4.5" markerWidth="6" markerHeight="6" orient="auto">
+            <circle cx="4.5" cy="4.5" r="3.4" fill={LAYER_COLORS[id]} />
           </marker>
-          {/* Traced/highlighted arrowhead (brighter) */}
-          <marker
-            id={`ar-${t}-traced`}
-            viewBox="0 0 10 10"
-            refX="9"
-            refY="5"
-            markerWidth="8"
-            markerHeight="8"
-            orient="auto-start-reverse"
-          >
-            <path
-              d="M0 1L9 5L0 9L2.5 5Z"
-              fill={TYPE_COLORS[t]}
-              filter={`url(#glow-${t})`}
-            />
+          <marker id={`ar-${id}-traced`} viewBox="0 0 9 9" refX="7.5" refY="4.5" markerWidth="7" markerHeight="7" orient="auto">
+            <circle cx="4.5" cy="4.5" r="3.6" fill={LAYER_COLORS[id]} filter={`url(#glow-${id})`} />
           </marker>
-          {/* Bidirectional — source end open circle */}
-          <marker
-            id={`ar-${t}-start`}
-            viewBox="0 0 10 10"
-            refX="5"
-            refY="5"
-            markerWidth="5"
-            markerHeight="5"
-            orient="auto"
-          >
-            <circle cx="5" cy="5" r="3" fill="none" stroke={TYPE_COLORS[t]} strokeWidth="1.5" />
+          <marker id={`ar-${id}-start`} viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+            <circle cx="5" cy="5" r="3" fill="none" stroke={LAYER_COLORS[id]} strokeWidth="1.5" />
           </marker>
         </React.Fragment>
       ))}
 
-      {/* ── Edge gradient definitions (horizontal, per-type) ──────────────── */}
-      {ARROW_TYPES.map(t => (
-        <linearGradient key={`edgegrad-${t}`} id={`edgegrad-${t}`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor={TYPE_COLORS[t]} stopOpacity="0.25" />
-          <stop offset="50%" stopColor={TYPE_COLORS[t]} stopOpacity="0.9" />
-          <stop offset="100%" stopColor={TYPE_COLORS[t]} stopOpacity="0.55" />
+      {/* ── Edge gradient definitions, one per layer ────────────────────────── */}
+      {LAYER_IDS.map(id => (
+        <linearGradient key={`edgegrad-${id}`} id={`edgegrad-${id}`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={LAYER_COLORS[id]} stopOpacity="0.3" />
+          <stop offset="50%" stopColor={LAYER_COLORS[id]} stopOpacity="0.95" />
+          <stop offset="100%" stopColor={LAYER_COLORS[id]} stopOpacity="0.6" />
         </linearGradient>
       ))}
 
-      {/* ── Tile gradient fills ───────────────────────────────────────────── */}
+      {/* ── Icon tile gradient fills (glyph family — shape only, not layer color) ── */}
       {FAMILIES.map(fam => (
         <linearGradient
           key={fam.id}
@@ -106,6 +80,26 @@ export const CanvasDefs: React.FC = () => {
           <stop offset="100%" stopColor={fam.dark} />
         </linearGradient>
       ))}
+
+      {/* ── Icon tile gradients recolored per-layer (used on canvas nodes) ─── */}
+      {LAYER_IDS.map(id => (
+        <linearGradient
+          key={`tile-${id}`}
+          id={`tile-${id}`}
+          x1="0"
+          y1="0"
+          x2="1"
+          y2="1"
+          gradientTransform="rotate(65 .5 .5)"
+        >
+          <stop offset="0%" stopColor={LAYER_COLORS[id]} stopOpacity="0.32" />
+          <stop offset="100%" stopColor={LAYER_COLORS[id]} stopOpacity="0.14" />
+        </linearGradient>
+      ))}
+      <linearGradient id="tile-neutral" x1="0" y1="0" x2="1" y2="1" gradientTransform="rotate(65 .5 .5)">
+        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.1" />
+        <stop offset="100%" stopColor="#ffffff" stopOpacity="0.04" />
+      </linearGradient>
     </defs>
   );
 };

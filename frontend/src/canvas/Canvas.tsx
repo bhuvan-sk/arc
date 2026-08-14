@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
+import html2canvas from 'html2canvas';
 import { CanvasDefs } from './CanvasDefs';
 import { GridBackground } from './GridBackground';
 import { LayerBand } from './LayerBand';
@@ -11,8 +12,8 @@ import { route } from '../lib/route';
 import { computeStepMarker } from '../lib/stepMarker';
 import { layerOpacity } from '../lib/layerOpacity';
 import { gridNodePosition } from '../lib/layout/computeLayout';
-import { COLORS } from '../theme/tokens';
-import { COLS, LAYERS_Y, VIEW_W, VIEW_H, NODE_H } from '../lib/geometry';
+import { COLORS, FONT_MONO, LAYER_IDS, layerColorByIndex } from '../theme/tokens';
+import { COLS, LAYERS_Y, VIEW_W, NODE_H } from '../lib/geometry';
 import { GraphData, LayerData } from '../api/types';
 
 interface CanvasProps {
@@ -24,6 +25,8 @@ interface CanvasProps {
   animLayerIndex?: number;
   tracePath?: string[];
   layoutNodes?: Record<string, { x: number; y: number }>;
+  sessionId?: string;
+  isChatOpen?: boolean;
 }
 
 // Fallback hardcoded UI ref data for Phase 4a standalone preview
@@ -76,13 +79,122 @@ export const Canvas: React.FC<CanvasProps> = ({
   animLayerIndex = -1,
   tracePath = [],
   layoutNodes,
+  sessionId,
+  isChatOpen = false,
 }) => {
-  const activeY = LAYERS_Y[activeLayerIndex] ?? 110;
-  const viewBox = `0 ${activeY + NODE_H / 2 - VIEW_H / 2} ${VIEW_W} ${VIEW_H}`;
-  const scale = zoom / 100;
-  const zoomTransform = `translate(${VIEW_W / 2},${activeY + NODE_H / 2}) scale(${scale}) translate(-${VIEW_W / 2},-${activeY + NODE_H / 2})`;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const outerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
-  // Calculate node geometry
+  // ── Drag-to-pan state ──
+  // panX / panY are offsets in SVG units applied to the diagram group.
+  // On mousedown we record the start position, then on mousemove we compute
+  // the delta in px and convert to SVG units (px × VIEW_W / containerWidth).
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const dragging = useRef(false);
+  const dragStart = useRef({ mx: 0, my: 0, px: 0, py: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only pan with left button, not on buttons/links
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('button,a')) return;
+    dragging.current = true;
+    dragStart.current = { mx: e.clientX, my: e.clientY, px: panX, py: panY };
+    setIsDragging(true);
+    e.preventDefault();
+  }, [panX, panY]);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragging.current) return;
+      const el = containerRef.current;
+      if (!el) return;
+      // Convert px delta → SVG units
+      const svgScale = VIEW_W / el.clientWidth;
+      const dx = (e.clientX - dragStart.current.mx) * svgScale;
+      const dy = (e.clientY - dragStart.current.my) * svgScale;
+      setPanX(dragStart.current.px - dx);
+      setPanY(dragStart.current.py - dy);
+    };
+    const onUp = () => {
+      dragging.current = false;
+      setIsDragging(false);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  // ── Build source layers first so we can use them in viewBox calculation ──
+  const sourceLayers = (layers && layers.length > 0)
+    ? layers.map(l => ({
+        index: l.index,
+        label: l.band_label,
+        y: LAYERS_Y[l.index] ?? (110 + l.index * 290),
+        edgeList: graph ? graph.connections.filter(c => c.layer_index === l.index).map(c => ({ id: c.id, a: c.source, b: c.target, transport: c.transport, label: c.label, sequence: c.sequence, metric: c.metric })) : []
+      }))
+    : HARDCODED_REF_DATA.layers.map(l => ({
+        index: l.index,
+        label: l.band_label,
+        y: l.y,
+        edgeList: l.edges
+      }));
+
+  const totalNodeCount = graph ? graph.nodes.length : 0;
+  const totalEdgeCount = graph ? graph.connections.length : sourceLayers.reduce((n, l) => n + l.edgeList.length, 0);
+  const totalLayerCount = sourceLayers.length || 3;
+
+  // ── Scrollable full-diagram viewBox ──
+  // Show every layer from top to bottom so the user can scroll through all layers at once.
+  const lastLayerY = sourceLayers.length > 0 ? sourceLayers[sourceLayers.length - 1].y : 690;
+  const DIAGRAM_TOP = 50;                        // breathing room above layer 01
+  const DIAGRAM_BOT = lastLayerY + NODE_H + 100; // generous padding below last layer
+  const DIAGRAM_H   = DIAGRAM_BOT - DIAGRAM_TOP;
+  const viewBox = `0 ${DIAGRAM_TOP} ${VIEW_W} ${DIAGRAM_H}`;
+
+  // Zoom + pan transform: scale around center, then shift by pan offset
+  const scale = zoom / 100;
+  const cx = VIEW_W / 2;
+  const cy = DIAGRAM_TOP + DIAGRAM_H / 2;
+  const zoomTransform = `translate(${cx},${cy}) scale(${scale}) translate(-${cx},-${cy}) translate(${-panX},${-panY})`;
+
+  // SVG aspect ratio for the padding-bottom intrinsic-size trick
+  const svgAspect = DIAGRAM_H / VIEW_W;
+
+  // ── PNG download: use html2canvas to capture the visible rendered DOM ──
+  // (SVG → Canvas fails for foreignObject content like NodeCard text,
+  // so we screenshot the outer wrapper div instead.)
+  const downloadPng = useCallback(async () => {
+    const el = outerRef.current;
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        backgroundColor: '#080a14',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${(sessionId || 'diagram').slice(0, 16)}-layer-${activeLayerIndex + 1}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    } catch (err) {
+      console.error('PNG export failed:', err);
+    }
+  }, [sessionId, activeLayerIndex]);
+
+
+  // ── Calculate node geometry ──
   const geomMap: Record<string, { id: string; x: number; y: number; type: string; title: string; sub: string; iconKey: string; origin: string; li: number }> = {};
 
   if (graph && layers && layers.length > 0) {
@@ -125,47 +237,30 @@ export const Canvas: React.FC<CanvasProps> = ({
     });
   }
 
-  // Build render arrays
-  const renderedBands: React.ReactNode[] = [];
-  const renderedEdges: React.ReactNode[] = [];
-  const renderedSteps: React.ReactNode[] = [];
-  const renderedNodes: React.ReactNode[] = [];
-
-  const sourceLayers = (layers && layers.length > 0)
-    ? layers.map(l => ({
-        index: l.index,
-        label: l.band_label,
-        y: LAYERS_Y[l.index] ?? (110 + l.index * 290),
-        edgeList: graph ? graph.connections.filter(c => c.layer_index === l.index).map(c => ({ id: c.id, a: c.source, b: c.target, transport: c.transport, label: c.label, sequence: c.sequence, metric: c.metric })) : []
-      }))
-    : HARDCODED_REF_DATA.layers.map(l => ({
-        index: l.index,
-        label: l.band_label,
-        y: l.y,
-        edgeList: l.edges
-      }));
+  // ── Build render arrays ──
+  const renderedLayers: React.ReactNode[] = [];
 
   sourceLayers.forEach((layer) => {
     const op = layerOpacity(layer.index, activeLayerIndex, unlockedIndex);
     if (op === 0) return;
 
-    // Layer Band
-    renderedBands.push(
-      <LayerBand
-        key={`band-${layer.index}`}
-        x={COLS[0]}
-        y={layer.y}
-        label={layer.label}
-        opacity={op}
-        isActive={layer.index === activeLayerIndex}
-      />
-    );
+    const isActive = layer.index === activeLayerIndex;
+    const isLocked = layer.index > unlockedIndex;
+    const color = layerColorByIndex(layer.index);
+    const layerId = LAYER_IDS[layer.index] || 'infra';
+
+    const depthScale = isActive ? 1 : isLocked ? 0.93 : 0.965;
+    const depthBlur = isActive ? 'none' : isLocked ? 'blur(2px) saturate(.4)' : 'blur(.7px) saturate(.75)';
+
+    const bandNodes: React.ReactNode[] = [];
+    const bandEdges: React.ReactNode[] = [];
+    const bandSteps: React.ReactNode[] = [];
 
     // Nodes in layer
     Object.values(geomMap)
       .filter(n => n.li === layer.index)
       .forEach(n => {
-        renderedNodes.push(
+        bandNodes.push(
           <NodeCard
             key={n.id}
             x={n.x}
@@ -174,9 +269,10 @@ export const Canvas: React.FC<CanvasProps> = ({
             sub={n.sub}
             type={n.type}
             iconKey={n.iconKey}
-            opacity={op}
+            opacity={1}
             origin={n.origin as any}
             isAnimating={layer.index === animLayerIndex}
+            layerColor={color}
           />
         );
       });
@@ -189,41 +285,29 @@ export const Canvas: React.FC<CanvasProps> = ({
       const sameRow = Math.abs(A.y - B.y) < 1;
       const { from, to } = computeAnchors(A, B);
       const d = route(from, to);
-      const color = COLORS.types[A.type] || COLORS.types.svc;
       const isTraced = tracePath.includes(e.id);
       const isBidirectional = e.transport === 'bidirectional';
-
-      // One shared midpoint drives the sequence badge, the metric pill, and
-      // the edge label, so they can be deliberately offset from each other
-      // instead of three separate midpoint calculations landing on the same
-      // spot and overlapping illegibly.
       const marker = computeStepMarker(from, to, sameRow);
       const displayLabel = e.label || (e.transport !== 'sync' ? e.transport : null);
 
-      renderedEdges.push(
+      bandEdges.push(
         <EdgePath
           key={e.id}
           d={d}
           color={color}
-          nodeType={A.type}
+          layerId={layerId}
           transport={e.transport}
-          opacity={op}
+          opacity={1}
           isTraced={isTraced}
           isRevealing={layer.index === animLayerIndex}
           isBidirectional={isBidirectional}
           label={displayLabel}
-          // Same-row labels are often wider than the ~70px node gap they sit
-          // in, so they float above the whole node row (clearing NODE_H/2 +
-          // margin), not just above the sequence badge — otherwise a long
-          // label like "logical replication" bleeds into the neighboring
-          // node card even though it cleared the badge.
           labelPos={{ x: marker.x, y: marker.y - 46 }}
         />
       );
 
-      // Sequence Badge — sits on the line itself
       if (e.sequence) {
-        renderedSteps.push(
+        bandSteps.push(
           <SequenceBadge
             key={`step-${e.id}`}
             x={marker.x}
@@ -232,46 +316,201 @@ export const Canvas: React.FC<CanvasProps> = ({
             by={marker.by}
             n={e.sequence}
             color={color}
-            opacity={op}
+            opacity={1}
             isAnimating={layer.index === animLayerIndex}
           />
         );
       }
 
-      // Metric Pill — below the line, mirroring the label's offset above it
       if (e.metric) {
-        renderedSteps.push(
+        bandSteps.push(
           <MetricPill
             key={`metric-${e.id}`}
             x={marker.x}
             y={marker.y + 48}
             text={e.metric}
             color={color}
-            opacity={op}
+            opacity={1}
           />
         );
       }
     });
+
+    renderedLayers.push(
+      <g
+        key={`layer-${layer.index}`}
+        opacity={op}
+        style={{
+          transformBox: 'fill-box',
+          transformOrigin: 'center',
+          transform: `scale(${depthScale})`,
+          filter: depthBlur,
+          transition: 'opacity .6s ease, transform .6s cubic-bezier(.2,.7,.2,1), filter .6s ease',
+        } as React.CSSProperties}
+      >
+        <LayerBand x={COLS[0]} y={layer.y} label={layer.label} opacity={1} isActive={isActive} color={color} />
+        {bandEdges}
+        {bandSteps}
+        {bandNodes}
+      </g>
+    );
   });
 
   return (
-    <div style={{ position: 'relative', flex: 1, minWidth: 0, background: '#0f0f11', overflow: 'hidden', height: '100%' }}>
-      <GridBackground />
-      <svg
-        width="100%"
-        height="100%"
-        viewBox={viewBox}
-        preserveAspectRatio="xMidYMid meet"
-        style={{ position: 'absolute', inset: 0 }}
+    // Outer non-scrolling wrapper — outerRef for html2canvas, chips anchored here
+    <div
+      ref={outerRef}
+      style={{
+        position: 'relative',
+        flex: 1,
+        minWidth: 0,
+        height: '100%',
+        borderRadius: 18,
+        background: 'radial-gradient(90% 60% at 50% 22%, rgba(146,166,255,.11), transparent 60%), linear-gradient(180deg, #0c1022, #080a14 70%)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06), 0 24px 60px rgba(0,0,0,.5)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Scrollable + draggable inner area */}
+      <div
+        ref={containerRef}
+        onMouseDown={onMouseDown}
+        style={{
+          width: '100%',
+          height: '100%',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgba(146,166,255,.25) transparent',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
+        } as React.CSSProperties}
       >
-        <CanvasDefs />
-        <g transform={zoomTransform}>
-          {renderedBands}
-          {renderedEdges}
-          {renderedSteps}
-          {renderedNodes}
-        </g>
-      </svg>
+        {/* Padding-bottom aspect-ratio trick: makes SVG intrinsically sized */}
+        <div style={{ position: 'relative', width: '100%', paddingBottom: `${svgAspect * 100}%` }}>
+          <GridBackground style={{ position: 'absolute', inset: 0 }} />
+          <svg
+            ref={svgRef}
+            width="100%"
+            height="100%"
+            viewBox={viewBox}
+            preserveAspectRatio="xMidYMin meet"
+            style={{ position: 'absolute', inset: 0 }}
+          >
+            <CanvasDefs />
+            <g transform={zoomTransform}>
+              {renderedLayers}
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      {/* ── Overlay chips — sit on the outer wrapper so they never scroll away ── */}
+
+      {/* PNG download button */}
+      <button
+        onClick={downloadPng}
+        title="Download active layer as PNG"
+        style={{
+          position: 'absolute',
+          left: 20,
+          top: 20,
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 7,
+          padding: '7px 12px',
+          borderRadius: 10,
+          background: 'rgba(10,13,26,.72)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07), 0 16px 40px rgba(0,0,0,.45)',
+          border: 0,
+          cursor: 'pointer',
+          fontFamily: FONT_MONO,
+          fontSize: 9,
+          letterSpacing: '.04em',
+          textTransform: 'uppercase',
+          color: COLORS.textSecondary,
+        }}
+      >
+        <svg width="11" height="12" viewBox="0 0 12 14">
+          <path d="M6 0v9M2.5 6.5L6 10l3.5-3.5M0.5 12.5h11" stroke="currentColor" strokeWidth={1.3} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        PNG
+      </button>
+
+      {/* Legend chip */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 20,
+          bottom: 20,
+          zIndex: 10,
+          display: 'flex',
+          gap: 16,
+          alignItems: 'center',
+          padding: '9px 14px',
+          borderRadius: 12,
+          background: 'rgba(10,13,26,.7)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07)',
+          fontFamily: FONT_MONO,
+          fontSize: 8,
+          letterSpacing: '.04em',
+          textTransform: 'uppercase',
+          color: COLORS.textDim,
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <svg width="26" height="6"><path d="M1 3h24" stroke="#b6bcdd" strokeWidth={1.6} strokeLinecap="round" /></svg>
+          sync
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <svg width="26" height="6"><path d="M1 3h24" stroke="#b6bcdd" strokeWidth={1.6} strokeLinecap="round" strokeDasharray="2 7" /></svg>
+          async
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <svg width="26" height="10"><path d="M1 3h24M1 7h20" stroke="#b6bcdd" strokeWidth={1.6} strokeLinecap="round" /></svg>
+          replication
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="none" stroke="#b6bcdd" /></svg>
+          step
+        </span>
+      </div>
+
+      {/* Stats chip */}
+      <div
+        style={{
+          position: 'absolute',
+          right: isChatOpen ? 440 : 20,
+          bottom: 20,
+          zIndex: 10,
+          padding: '12px 16px',
+          borderRadius: 14,
+          background: 'rgba(10,13,26,.72)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07), 0 16px 40px rgba(0,0,0,.45)',
+          fontFamily: FONT_MONO,
+          fontSize: 8.5,
+          color: COLORS.textDim,
+          display: 'flex',
+          gap: 22,
+          transition: 'right .28s cubic-bezier(.2,.7,.2,1)',
+        }}
+      >
+        {sessionId && (
+          <div>
+            <div style={{ color: COLORS.textGhost, marginBottom: 5 }}>SESSION</div>
+            {sessionId.slice(0, 8)}
+          </div>
+        )}
+        <div>
+          <div style={{ color: COLORS.textGhost, marginBottom: 5 }}>NODES</div>
+          {totalNodeCount} / {String(totalEdgeCount).padStart(2, '0')} edges
+        </div>
+        <div>
+          <div style={{ color: COLORS.textGhost, marginBottom: 5 }}>DEPTH</div>
+          layer {String(activeLayerIndex + 1).padStart(2, '0')} of {totalLayerCount}
+        </div>
+      </div>
     </div>
   );
 };
