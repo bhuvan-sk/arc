@@ -1,5 +1,9 @@
 # Architecture Explainer
 
+### [Start Here](https://github.com/bhuvan-sk) (Back to Profile)
+
+# Architecture Explainer
+
 Upload an existing system's architecture diagram or design doc and get it taught back to you layer by layer — Data → API → Infra — on a progressive-reveal canvas, with a scoped chat panel and live voice, grounded in [Designing Data-Intensive Applications](https://dataintensive.net/) reasoning: every explanation states a fact, then its tradeoff.
 
 ## What it does
@@ -87,3 +91,4 @@ cd frontend && npm test
 - Mode B (research-backed gap-filling) is UI-only; the backend endpoint is a stub.
 - The Gemini Live voice bridge requires a Google Cloud project with Live API access enabled — a fresh/free-tier key may return `PERMISSION_DENIED` until that's granted.
 - No auth — this is a local/single-user dev tool as it stands.
+
